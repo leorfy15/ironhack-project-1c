@@ -11,3 +11,6 @@
 *.tfvars
 .DS_Store
 terraform.tfvars
+*.pem
+*.pub
+.env
