@@ -1,0 +1,16 @@
+services:
+  vote:
+    image: dockersamples/examplevotingapp_vote
+    ports:
+      - "8080:80"
+    environment:
+      REDIS_HOST: 10.0.2.123
+
+  result:
+    image: dockersamples/examplevotingapp_result
+    ports:
+      - "8081:80"
+    environment:
+      DB_HOST: 10.0.2.150
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
