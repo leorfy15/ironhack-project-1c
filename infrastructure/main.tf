@@ -78,7 +78,7 @@ resource "aws_security_group" "sg_a" {
 }
 resource "aws_key_pair" "tatiana_key" {
   key_name   = "tatiana-project1"
-  public_key = file("${path.module}/tatiana-project1.pub")
+  public_key = file("/Users/tatianatudor/Desktop/devops/tatiana-project1.pub")
 }
 resource "aws_instance" "instance_a" {
   ami                    = data.aws_ami.amazon_linux.id
@@ -89,6 +89,11 @@ resource "aws_instance" "instance_a" {
 
   instance_market_options {
     market_type = "spot"
+  }
+
+    root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
   }
 
   tags = {
@@ -142,6 +147,7 @@ resource "aws_route_table" "private_rt" {
     cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.nat.id
   }
+
 
   tags = {
     Name = "tatiana-private-route-table"
@@ -216,9 +222,13 @@ resource "aws_instance" "instance_b" {
   vpc_security_group_ids = [aws_security_group.sg_b.id]
 
   key_name = aws_key_pair.tatiana_key.key_name
-
+  
   instance_market_options {
   market_type = "spot"
+  }
+    root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
   }
 
   tags = {
@@ -235,6 +245,11 @@ resource "aws_instance" "instance_c" {
 
   instance_market_options {
   market_type = "spot"
+  }
+
+      root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
   }
 
   tags = {

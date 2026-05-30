@@ -1,4 +1,3 @@
----
 - name: Configure Bastion / Vote / Result
   hosts: bastion
   become: yes
@@ -8,6 +7,12 @@
       dnf:
         name: docker
         state: present
+
+    - name: Install docker-compose
+      get_url:
+        url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
 
     - name: Start Docker
       service:
@@ -29,7 +34,7 @@
         mode: '0644'
         
     - name: Start front containers
-      command: docker compose -f /home/ec2-user/docker-compose.front.yml up -d
+      command: docker-compose -f /home/ec2-user/docker-compose.front.yml up -d
 
 
 - name: Configure Worker / Redis
@@ -41,6 +46,12 @@
       dnf:
         name: docker
         state: present
+
+    - name: Install docker-compose
+      get_url:
+        url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
 
     - name: Start Docker
       service:
@@ -57,7 +68,7 @@
         mode: '0644'
 
     - name: Start worker containers
-      command: docker compose -f /home/ec2-user/docker-compose.worker.yml up -d
+      command: docker-compose -f /home/ec2-user/docker-compose.worker.yml up -d
 
 - name: Configure Database
   hosts: database

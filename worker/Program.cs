@@ -12,6 +12,43 @@ namespace Worker
 {
     public class Program
     {
+private static NpgsqlConnection OpenDbConnection(string connectionString)
+{
+    NpgsqlConnection connection;
+
+    while (true)
+    {
+        try
+        {
+            connection = new NpgsqlConnection(connectionString);
+            connection.Open();
+            break;
+        }
+        catch (SocketException)
+        {
+            Console.Error.WriteLine("Waiting for db");
+            Thread.Sleep(1000);
+        }
+        catch (DbException ex)
+        {
+            Console.Error.WriteLine(ex.ToString());
+            Thread.Sleep(1000);
+        }
+    }
+    
+
+    Console.Error.WriteLine("Connected to db");
+
+    var command = connection.CreateCommand();
+    command.CommandText = @"CREATE TABLE IF NOT EXISTS votes (
+                                id VARCHAR(255) NOT NULL,
+                                vote VARCHAR(255) NOT NULL
+                            )";
+    command.ExecuteNonQuery();
+
+    return connection;
+}
+
         public static int Main(string[] args)
         {
             try
@@ -80,42 +117,6 @@ namespace Worker
                 Console.Error.WriteLine(ex.ToString());
                 return 1;
             }
-        }
-
-        private static NpgsqlConnection OpenDbConnection(string connectionString)
-        {
-            NpgsqlConnection connection;
-
-            while (true)
-            {
-                try
-                {
-                    connection = new NpgsqlConnection(connectionString);
-                    connection.Open();
-                    break;
-                }
-                catch (SocketException)
-                {
-                    Console.Error.WriteLine("Waiting for db");
-                    Thread.Sleep(1000);
-                }
-                catch (DbException)
-                {
-                    Console.Error.WriteLine("Waiting for db");
-                    Thread.Sleep(1000);
-                }
-            }
-
-            Console.Error.WriteLine("Connected to db");
-
-            var command = connection.CreateCommand();
-            command.CommandText = @"CREATE TABLE IF NOT EXISTS votes (
-                                        id VARCHAR(255) NOT NULL,
-                                        vote VARCHAR(255) NOT NULL
-                                    )";
-            command.ExecuteNonQuery();
-
-            return connection;
         }
 
         private static ConnectionMultiplexer OpenRedisConnection(string hostname)

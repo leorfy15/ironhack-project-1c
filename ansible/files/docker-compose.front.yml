@@ -1,16 +1,16 @@
 services:
   vote:
-    image: dockersamples/examplevotingapp_vote
+    image: leorfy/vote:latest
     ports:
       - "8080:80"
     environment:
-      REDIS_HOST: 10.0.2.123
+      REDIS_HOST: "10.0.2.93"
 
   result:
-    image: dockersamples/examplevotingapp_result
+    image: leorfy/result:latest
     ports:
       - "8081:80"
     environment:
-      DB_HOST: 10.0.2.150
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      PG_HOST: "10.0.2.177"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"

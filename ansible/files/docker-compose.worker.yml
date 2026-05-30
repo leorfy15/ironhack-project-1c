@@ -5,9 +5,10 @@ services:
       - "6379:6379"
 
   worker:
-    image: dockersamples/examplevotingapp_worker
+    image: leorfy/worker:latest
     environment:
-      REDIS_HOST: localhost
-      DB_HOST: 10.0.2.150
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      REDIS_HOST: redis
+      DB_HOST: 10.0.2.177
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: postgres
