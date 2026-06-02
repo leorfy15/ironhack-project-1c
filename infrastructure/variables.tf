@@ -8,18 +8,33 @@ variable "vpc_cidr" {
   type        = string
 }
 
-variable "public_subnet_cidr" {
-  description = "Public subnet CIDR"
+variable "public_subnet_a_cidr" {
+  description = "Public subnet in AZ-a"
   type        = string
 }
 
-variable "private_subnet_cidr" {
-  description = "Private subnet CIDR"
+variable "public_subnet_b_cidr" {
+  description = "Public subnet in AZ-b"
   type        = string
 }
 
-variable "ami_id" {
-  description = "Amazon Linux AMI"
+variable "private_subnet_a_cidr" {
+  description = "Private subnet in AZ-a"
+  type        = string
+}
+
+variable "private_subnet_b_cidr" {
+  description = "Private subnet in AZ-b"
+  type        = string
+}
+
+variable "az_a" {
+  description = "Primary AZ"
+  type        = string
+}
+
+variable "az_b" {
+  description = "Secondary AZ"
   type        = string
 }
 
