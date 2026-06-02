@@ -1,108 +1,135 @@
-- name: Configure Bastion / Vote / Result
+---
+- become: 'yes'
   hosts: bastion
-  become: yes
-
+  name: Configure Bastion / Vote / Result
   tasks:
-    - name: Install Docker
-      dnf:
+    - dnf:
         name: docker
         state: present
-
-    - name: Install docker-compose
-      get_url:
-        url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+      name: Install Docker
+    - get_url:
         dest: /usr/local/bin/docker-compose
         mode: '0755'
-
+        url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+      name: Install docker-compose
     - name: Start Docker
       service:
+        enabled: 'yes'
         name: docker
         state: started
-        enabled: yes
-
-    - name: Install Git
-      dnf:
+    - dnf:
         name: git
         state: present
-
-    - name: Copy front compose file
-      copy:
-        src: files/docker-compose.front.yml
+      name: Install Git
+    - copy:
         dest: /home/ec2-user/docker-compose.front.yml
-        owner: ec2-user
         group: ec2-user
         mode: '0644'
-        
-    - name: Start front containers
-      command: docker-compose -f /home/ec2-user/docker-compose.front.yml up -d
-
-
-- name: Configure Worker / Redis
+        owner: ec2-user
+        src: files/docker-compose.front.yml
+      name: Copy front compose file
+    - command: docker-compose -f /home/ec2-user/docker-compose.front.yml up -d
+      name: Start front containers
+- become: 'yes'
   hosts: worker
-  become: yes
-
+  name: Configure Worker / Redis
   tasks:
-    - name: Install Docker
-      dnf:
+    - dnf:
         name: docker
         state: present
-
-    - name: Install docker-compose
-      get_url:
-        url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+      name: Install Docker
+    - get_url:
         dest: /usr/local/bin/docker-compose
         mode: '0755'
-
+        url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+      name: Install docker-compose
     - name: Start Docker
       service:
+        enabled: 'yes'
         name: docker
         state: started
-        enabled: yes
-
-    - name: Copy worker compose file
-      copy:
-        src: files/docker-compose.worker.yml
+    - copy:
         dest: /home/ec2-user/docker-compose.worker.yml
-        owner: ec2-user
         group: ec2-user
         mode: '0644'
-
-    - name: Start worker containers
-      command: docker-compose -f /home/ec2-user/docker-compose.worker.yml up -d
-
-- name: Configure Database
+        owner: ec2-user
+        src: files/docker-compose.worker.yml
+      name: Copy worker compose file
+    - command: docker-compose -f /home/ec2-user/docker-compose.worker.yml up -d
+      name: Start worker containers
+- become: 'yes'
   hosts: database
-  become: yes
-
+  name: Configure Database
   tasks:
-    - name: Install PostgreSQL server
-      dnf:
+    - dnf:
         name: postgresql15-server
         state: present
-
-    - name: Initialize PostgreSQL
-      command: postgresql-setup --initdb
-      args:
+      name: Install PostgreSQL server
+    - args:
         creates: /var/lib/pgsql/data/PG_VERSION
-
+      command: postgresql-setup --initdb
+      name: Initialize PostgreSQL
     - name: Start PostgreSQL
       service:
+        enabled: 'yes'
         name: postgresql
         state: started
-        enabled: yes
-
-    - name: Allow PostgreSQL remote connections
-      lineinfile:
+    - lineinfile:
+        line: listen_addresses = '*'
         path: /var/lib/pgsql/data/postgresql.conf
-        regexp: '^#?listen_addresses'
-        line: "listen_addresses = '*'"
-
-    - name: Allow VPC clients in pg_hba.conf
-      lineinfile:
+        regexp: ^#?listen_addresses
+      name: Allow PostgreSQL remote connections
+    - lineinfile:
+        line: wal_level = replica
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: ^#?wal_level
+      name: Set wal_level
+    - lineinfile:
+        line: max_wal_senders = 10
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: ^#?max_wal_senders
+      name: Set max_wal_senders
+    - lineinfile:
+        line: max_replication_slots = 10
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: ^#?max_replication_slots
+      name: Set max_replication_slots
+    - lineinfile:
+        line: hot_standby = on
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: ^#?hot_standby
+      name: Set hot_standby
+    - lineinfile:
+        line: host all all 10.0.0.0/16 md5
         path: /var/lib/pgsql/data/pg_hba.conf
-        line: "host all all 10.0.0.0/16 md5"
+      name: Allow VPC clients
+    - lineinfile:
+        line: host replication replicator 10.0.12.24/32 md5
+        path: /var/lib/pgsql/data/pg_hba.conf
+      name: Allow replica access
+    - name: Create replication user
+      shell: |
+         sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='replicator'" | grep -q 1 || \
+         sudo -u postgres psql -c "CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD 'StrongPassword123!';"
 
     - name: Restart PostgreSQL
       service:
         name: postgresql
         state: restarted
+- become: 'yes'
+  hosts: database_secondary
+  name: Configure Replica Database
+  tasks:
+    - dnf:
+        name: postgresql15-server
+        state: present
+      name: Install PostgreSQL server
+    - name: Check if replica already exists
+      register: replica_exists
+      stat:
+        path: /var/lib/pgsql/data/standby.signal
+    - name: Start PostgreSQL
+      service:
+        enabled: 'yes'
+        name: postgresql
+        state: started
