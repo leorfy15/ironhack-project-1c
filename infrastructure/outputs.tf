@@ -24,3 +24,21 @@ output "instance_f_private_ip" {
 output "alb_dns_name" {
   value = aws_lb.vote_alb.dns_name
 }
+output "bastion_public_ip" {
+  value = aws_instance.instance_a.public_ip
+}
+
+output "frontend_public_ip" {
+  value = aws_instance.instance_e.public_ip
+}
+
+output "database_private_ip" {
+  value = aws_instance.instance_c.private_ip
+}
+
+output "replica_private_ip" {
+  value = aws_instance.instance_f.private_ip
+}
+output "result_url" {
+  value = "http://${aws_instance.instance_e.public_ip}:8081"
+}

@@ -107,71 +107,56 @@
         name: postgresql
         state: started
         enabled: yes
-
     - name: Set postgres password
       shell: |
         sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
 
-- name: Configure Replica Database
-  hosts: database_secondary
-  become: yes
+    - name: Allow PostgreSQL remote connections
+      lineinfile:
+       path: /var/lib/pgsql/data/postgresql.conf
+       regexp: '^#?listen_addresses'
+       line: "listen_addresses = '*'"
 
-  tasks:
+    - name: Set wal_level
+      lineinfile:
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: '^#?wal_level'
+        line: "wal_level = replica"
 
-    - name: Install PostgreSQL server
-      dnf:
-        name: postgresql15-server
-        state: present
+    - name: Set max_wal_senders
+      lineinfile:
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: '^#?max_wal_senders'
+        line: "max_wal_senders = 10"
 
-    - name: Check if replica already exists
-      stat:
-        path: /var/lib/pgsql/data/standby.signal
-      register: replica_exists
+    - name: Set max_replication_slots
+      lineinfile:
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: '^#?max_replication_slots'
+        line: "max_replication_slots = 10"
 
-    - name: Stop PostgreSQL
-      service:
-        name: postgresql
-        state: stopped
-      when: not replica_exists.stat.exists
+    - name: Set hot_standby
+      lineinfile:
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: '^#?hot_standby'
+        line: "hot_standby = on"
 
-    - name: Remove old database
-      file:
-        path: /var/lib/pgsql/data
-        state: absent
-      when: not replica_exists.stat.exists
+    - name: Allow VPC clients
+      lineinfile:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        line: "host all all 10.0.0.0/16 md5"
 
-    - name: Recreate data directory
-      file:
-        path: /var/lib/pgsql/data
-        state: directory
-        owner: postgres
-        group: postgres
-        mode: '0700'
-      when: not replica_exists.stat.exists
+    - name: Allow replica access
+      lineinfile:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        line: "host replication replicator 10.0.12.128/32 md5"
 
-    - name: Create replica from primary
+    - name: Create replication user
       shell: |
-        sudo -u postgres bash -c '
-        PGPASSWORD=StrongPassword123! pg_basebackup \
-        -h {{ primary_db_host }} \
-        -D /var/lib/pgsql/data \
-        -U replicator \
-        -P \
-        -R'
-      when: not replica_exists.stat.exists
+        sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='replicator'" | grep -q 1 || \
+        sudo -u postgres psql -c "CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD 'StrongPassword123!';"
 
-    - name: Start PostgreSQL
+    - name: Restart PostgreSQL
       service:
-        name: postgresql
-        state: started
-        enabled: yes
-
-    - name: Verify standby file exists
-      stat:
-        path: /var/lib/pgsql/data/standby.signal
-      register: standby_file
-
-    - name: Fail if replica was not created
-      fail:
-        msg: "Replica setup failed"
-      when: not standby_file.stat.exists
+       name: postgresql
+       state: restarted
