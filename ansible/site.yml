@@ -149,7 +149,7 @@
     - name: Allow replica access
       lineinfile:
         path: /var/lib/pgsql/data/pg_hba.conf
-        line: "host replication replicator 10.0.12.128/32 md5"
+        line: "host replication replicator {{ secondary_db_host }}/32 md5"
 
     - name: Create replication user
       shell: |
@@ -160,3 +160,49 @@
       service:
        name: postgresql
        state: restarted
+
+- name: Configure Replica Database
+  hosts: database_secondary
+  become: yes
+
+  tasks:
+
+    - name: Install PostgreSQL server
+      dnf:
+        name: postgresql15-server
+        state: present
+
+    - name: Stop PostgreSQL
+      service:
+        name: postgresql
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove old database
+      file:
+        path: /var/lib/pgsql/data
+        state: absent
+
+    - name: Recreate data directory
+      file:
+        path: /var/lib/pgsql/data
+        state: directory
+        owner: postgres
+        group: postgres
+        mode: '0700'
+
+    - name: Create replica from primary
+      shell: |
+        sudo -u postgres bash -c '
+        PGPASSWORD=StrongPassword123! pg_basebackup \
+        -h {{ primary_db_host }} \
+        -D /var/lib/pgsql/data \
+        -U replicator \
+        -P \
+        -R'
+
+    - name: Start PostgreSQL
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
