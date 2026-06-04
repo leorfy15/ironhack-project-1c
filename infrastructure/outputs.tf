@@ -21,3 +21,6 @@ output "instance_e_private_ip" {
 output "instance_f_private_ip" {
   value = aws_instance.instance_f.private_ip
 }
+output "alb_dns_name" {
+  value = aws_lb.vote_alb.dns_name
+}
