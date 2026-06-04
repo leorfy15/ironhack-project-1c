@@ -303,7 +303,7 @@ resource "aws_instance" "instance_d" {
 resource "aws_instance" "instance_e" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = var.instance_type
-  subnet_id              = aws_subnet.private_b.id
+  subnet_id              = aws_subnet.public_b.id
   vpc_security_group_ids = [aws_security_group.sg_e.id]
 
   key_name = aws_key_pair.tatiana_key.key_name

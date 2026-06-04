@@ -51,6 +51,16 @@
         name: docker
         state: started
         enabled: yes
+    - name: Copy front compose file
+      copy:
+        src: files/docker-compose.front.yml
+        dest: /home/ec2-user/docker-compose.front.yml
+        owner: ec2-user
+        group: ec2-user
+        mode: '0644'
+
+    - name: Start front containers
+      command: docker-compose -f /home/ec2-user/docker-compose.front.yml up -d
 
 - become: 'yes'
   hosts: worker
