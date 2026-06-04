@@ -417,3 +417,16 @@ resource "aws_lb_listener" "vote_listener" {
     target_group_arn = aws_lb_target_group.vote_tg.arn
   }
 }
+resource "local_file" "ansible_inventory" {
+  filename = "../ansible/inventory.ini"
+
+  content = templatefile("${path.module}/inventory.tpl", {
+    instance_a_public_ip = aws_instance.instance_a.public_ip
+    instance_e_public_ip = aws_instance.instance_e.public_ip
+
+    instance_b_private_ip = aws_instance.instance_b.private_ip
+    instance_c_private_ip = aws_instance.instance_c.private_ip
+    instance_d_private_ip = aws_instance.instance_d.private_ip
+    instance_f_private_ip = aws_instance.instance_f.private_ip
+  })
+}
