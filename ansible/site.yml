@@ -1,7 +1,7 @@
 ---
-- become: 'yes'
+- name: Configure Bastion
   hosts: bastion
-  name: Configure Bastion / Vote / Result
+  become: 'yes'
   tasks:
     - dnf:
         name: docker
@@ -30,6 +30,28 @@
       name: Copy front compose file
     - command: docker-compose -f /home/ec2-user/docker-compose.front.yml up -d
       name: Start front containers
+- name: Configure Frontend
+  hosts: frontend
+  become: yes
+
+  tasks:
+    - name: Install Docker
+      dnf:
+        name: docker
+        state: present
+
+    - name: Install docker-compose
+      get_url:
+        url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
 - become: 'yes'
   hosts: worker
   name: Configure Worker / Redis
@@ -65,13 +87,20 @@
         name: postgresql15-server
         state: present
       name: Install PostgreSQL server
+    - name: Initialize PostgreSQL
+      command: postgresql-setup --initdb
+      args:
+        creates: /var/lib/pgsql/data/PG_VERSION
+
+    - name: Start PostgreSQL
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
     - name: Set postgres password
       shell: |
         sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
-      args:
-        creates: /var/lib/pgsql/data/PG_VERSION
-      command: postgresql-setup --initdb
-      name: Initialize PostgreSQL
     - name: Start PostgreSQL
       service:
         enabled: 'yes'
@@ -107,8 +136,8 @@
         path: /var/lib/pgsql/data/pg_hba.conf
       name: Allow VPC clients
     - lineinfile:
-        line: host replication replicator 10.0.12.24/32 md5
         path: /var/lib/pgsql/data/pg_hba.conf
+        line: "host replication replicator 10.0.12.203/32 md5"
       name: Allow replica access
     - name: Create replication user
       shell: |

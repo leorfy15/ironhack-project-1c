@@ -51,12 +51,12 @@ resource "aws_security_group" "sg_a" {
   name   = "tatiana-security-group-a"
   vpc_id = aws_vpc.main.id
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.my_ip]
-  }
+ingress {
+  from_port   = 22
+  to_port     = 22
+  protocol    = "tcp"
+  cidr_blocks = [var.my_ip]
+}
 
   ingress {
     from_port   = 443
@@ -233,6 +233,31 @@ resource "aws_security_group" "sg_c" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+resource "aws_security_group" "sg_e" {
+  name   = "tatiana-security-group-e"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.sg_a.id]
+  }
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8081
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
 resource "aws_instance" "instance_b" {
   ami                    = data.aws_ami.amazon_linux.id
@@ -252,6 +277,48 @@ resource "aws_instance" "instance_b" {
 
   tags = {
     Name = "tatiana-instance-b"
+  }
+}
+resource "aws_instance" "instance_d" {
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.private_b.id
+  vpc_security_group_ids = [aws_security_group.sg_b.id]
+
+  key_name = aws_key_pair.tatiana_key.key_name
+
+  instance_market_options {
+    market_type = "spot"
+  }
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
+
+  tags = {
+    Name = "tatiana-instance-d"
+  }
+}
+resource "aws_instance" "instance_e" {
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.private_b.id
+  vpc_security_group_ids = [aws_security_group.sg_e.id]
+
+  key_name = aws_key_pair.tatiana_key.key_name
+
+  instance_market_options {
+    market_type = "spot"
+  }
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
+
+  tags = {
+    Name = "tatiana-instance-e"
   }
 }
 resource "aws_instance" "instance_c" {
