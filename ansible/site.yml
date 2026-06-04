@@ -65,7 +65,10 @@
         name: postgresql15-server
         state: present
       name: Install PostgreSQL server
-    - args:
+    - name: Set postgres password
+      shell: |
+        sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+      args:
         creates: /var/lib/pgsql/data/PG_VERSION
       command: postgresql-setup --initdb
       name: Initialize PostgreSQL
