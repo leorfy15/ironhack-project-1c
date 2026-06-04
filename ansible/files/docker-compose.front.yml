@@ -4,13 +4,13 @@ services:
     ports:
       - "8080:80"
     environment:
-      REDIS_HOST: "10.0.11.192"
+      REDIS_HOST: "10.0.11.205"
 
   result:
     image: leorfy/result:latest
     ports:
       - "8081:80"
     environment:
-      PG_HOST: "10.0.11.77"
+      PG_HOST: "10.0.11.19"
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "postgres"

@@ -2,8 +2,7 @@
 instance_a ansible_host=${instance_a_public_ip}
 
 [frontend]
-instance_a ansible_host=${instance_a_public_ip}
-instance_e ansible_host=${instance_e_public_ip}
+instance_e ansible_host=${instance_e_private_ip}
 
 [worker]
 instance_b ansible_host=${instance_b_private_ip}
