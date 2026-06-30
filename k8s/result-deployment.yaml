@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: result
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: result
+
+  template:
+    metadata:
+      labels:
+        app: result
+
+    spec:
+      containers:
+      - name: result
+        image: leorfy/result:latest
+
+        ports:
+        - containerPort: 80
+
+        env:
+        - name: POSTGRES_HOST
+          value: postgres
+
+        - name: POSTGRES_USER
+          value: postgres
+
+        - name: POSTGRES_PASSWORD
+          value: postgres
+
+        - name: POSTGRES_DB
+          value: postgres
+
+        - name: PG_USER
+          value: postgres
+
+        - name: PG_PASSWORD
+          value: postgres
+
+        - name: PG_DATABASE
+          value: postgres
+
+        - name: PG_HOST
+          value: postgres
