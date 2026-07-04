@@ -22,7 +22,7 @@ jobs:
 
     - name: Connect to EKS
       run: |
-        aws eks update-kubeconfig --name eks-tatiana --region us-east-1
+        aws eks update-kubeconfig --name eks-tatiana --region ${{ secrets.AWS_REGION }}
 
     - name: Deploy Kubernetes manifests
       run: |
