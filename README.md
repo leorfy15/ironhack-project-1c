@@ -1,155 +1,285 @@
-<!-- © 2024 | Ironhack -->
+# AWS EKS Voting Application
 
----
+A multi-service voting platform deployed on **Amazon EKS**, with AWS infrastructure managed through **Terraform**, workloads orchestrated by **Kubernetes**, automated deployment through **GitHub Actions**, and cluster monitoring with **Prometheus and Grafana**.
 
-# Multi-Stack Voting Application
+This project was completed during the Ironhack DevOps bootcamp to put cloud infrastructure, container orchestration, networking, CI/CD, observability, and troubleshooting into practice.
 
-**Welcome to your DevOps practice project!** This repository hosts a multi-stack voting application composed of several services, each implemented in a different language and technology stack. The goal is to help you gain experience with containerization, orchestration, and running a distributed set of services—both individually and as part of a unified system.
+## Project highlights
 
-This application, while simple, uses multiple components commonly found in modern distributed architectures, giving you hands-on practice in connecting services, handling containers, and working with basic infrastructure automation.
+- Deployed a distributed application composed of Python, .NET, Node.js, Redis, and PostgreSQL services.
+- Provisioned the supporting AWS network and compute foundation with Terraform.
+- Used an encrypted S3 backend and DynamoDB locking for remote Terraform state.
+- Containerized the application and deployed it to Amazon EKS using Kubernetes manifests.
+- Exposed the application through NGINX Ingress with DNS and TLS termination.
+- Automated Kubernetes deployments from the `main` branch with GitHub Actions.
+- Added CPU and memory requests and limits to application workloads.
+- Monitored cluster, pod, node, disk, memory, and network health with Prometheus, Grafana, and Node Exporter.
+- Load-tested the voting endpoint with up to 10,000 requests to observe application and infrastructure behaviour.
 
-## Application Overview
+## Architecture
 
-The voting application includes:
+The application uses an asynchronous workflow:
 
-- **Vote (Python)**: A Python Flask-based web application where users can vote between two options.
-- **Redis (in-memory queue)**: Collects incoming votes and temporarily stores them.
-- **Worker (.NET)**: A .NET 7.0-based service that consumes votes from Redis and persists them into a database.
-- **Postgres (Database)**: Stores votes for long-term persistence.
-- **Result (Node.js)**: A Node.js/Express web application that displays the vote counts in real time.
+1. Users submit a vote through the Python/Flask frontend.
+2. The vote service places the vote in Redis.
+3. The .NET worker consumes queued votes and writes them to PostgreSQL.
+4. The Node.js result service reads the stored data and displays the results.
+5. NGINX Ingress routes external HTTPS traffic to the vote and result services.
+6. Prometheus collects infrastructure and Kubernetes metrics, which are visualized in Grafana.
 
-### Why This Setup?
-
-The goal is to introduce you to a variety of languages, tools, and frameworks in one place. This is **not** a perfect production design. Instead, it’s intentionally diverse to help you:
-
-- Work with multiple runtimes and languages (Python, Node.js, .NET).
-- Interact with services like Redis and Postgres.
-- Containerize applications using Docker.
-- Use Docker Compose to orchestrate and manage multiple services together.
-
-By dealing with this “messy” environment, you’ll build real-world problem-solving skills. After this project, you should feel more confident tackling more complex deployments and troubleshooting issues in containerized, multi-service setups.
-
----
-
-## How to Run Each Component
-
-### Running the Vote Service (Python) Locally (No Docker)
-
-1. Ensure you have Python 3.10+ installed.
-2. Navigate to the `vote` directory:
-   ```bash
-   cd vote
-   pip install -r requirements.txt
-   python app.py
-   ```
-   Access the vote interface at [http://localhost:5000](http://localhost:5000).
-
-### Running Redis Locally (No Docker)
-
-1. Install Redis on your system ([https://redis.io/docs/getting-started/](https://redis.io/docs/getting-started/)).
-2. Start Redis:
-   ```bash
-   redis-server
-   ```
-   Redis will be available at `localhost:6379`.
-
-### Running the Worker (C#/.NET) Locally (No Docker)
-
-1. Ensure .NET 7.0 SDK is installed.
-2. Navigate to `worker`:
-   ```bash
-   cd worker
-   dotnet restore
-   dotnet run
-   ```
-   The worker will attempt to connect to Redis and Postgres when available.
-
-### Running Postgres Locally (No Docker)
-
-1. Install Postgres from [https://www.postgresql.org/download/](https://www.postgresql.org/download/).
-2. Start Postgres, note the username and password (default `postgres`/`postgres`):
-   ```bash
-   # On many systems, Postgres runs as a service once installed.
-   ```
-   Postgres will be available at `localhost:5432`.
-
-### Running the Result Service (Node.js) Locally (No Docker)
-
-1. Ensure Node.js 18+ is installed.
-2. Navigate to `result`:
-   ```bash
-   cd result
-   npm install
-   node server.js
-   ```
-   Access the results interface at [http://localhost:4000](http://localhost:4000).
-
-**Note:** To get the entire system working end-to-end (i.e., votes flowing through Redis, processed by the worker, stored in Postgres, and displayed by the result app), you’ll need to ensure each component is running and that connection strings or environment variables point to the correct services.
-
----
-
-## Running the Entire Stack in Docker
-
-### Building and Running Individual Services
-
-You can build each service with Docker and run them individually:
-
-- **Vote (Python)**:
-  ```bash
-  docker build -t myorg/vote:latest ./vote
-  docker run --name vote -p 8080:80 myorg/vote:latest
-  ```
-  Visit [http://localhost:8080](http://localhost:8080).
-
-- **Redis** (official image, no build needed):
-  ```bash
-  docker run --name redis -p 6379:6379 redis:alpine
-  ```
-
-- **Worker (.NET)**:
-  ```bash
-  docker build -t myorg/worker:latest ./worker
-  docker run --name worker myorg/worker:latest
-  ```
-  
-- **Postgres**:
-  ```bash
-  docker run --name db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:15-alpine
-  ```
-
-- **Result (Node.js)**:
-  ```bash
-  docker build -t myorg/result:latest ./result
-  docker run --name result -p 8081:80 myorg/result:latest
-  ```
-  Visit [http://localhost:8081](http://localhost:8081).
-
-### Using Docker Compose
-
-The easiest way to run the entire stack is via Docker Compose. From the project root directory:
-
-```bash
-docker compose up
+```mermaid
+flowchart LR
+    User((User)) -->|HTTPS| Ingress[NGINX Ingress]
+    Ingress --> Vote[Vote service<br/>Python / Flask]
+    Ingress --> Result[Result service<br/>Node.js]
+    Vote --> Redis[(Redis)]
+    Redis --> Worker[Worker<br/>.NET]
+    Worker --> Postgres[(PostgreSQL)]
+    Postgres --> Result
+    Prometheus[Prometheus] -. metrics .-> Grafana[Grafana]
+    EKS[Amazon EKS workloads] -. observed by .-> Prometheus
 ```
 
-This will:
+> The repository contains the Terraform configuration for the supporting AWS network/EC2/ALB environment and the Kubernetes manifests used to deploy the application to an existing EKS cluster.
 
-- Build and run the vote, worker, and result services.
-- Run Redis and Postgres from their official images.
-- Set up networks, volumes, and environment variables so all services can communicate.
+## Technology stack
 
-Visit [http://localhost:8080](http://localhost:8080) to vote and [http://localhost:8081](http://localhost:8081) to see results.
+| Area | Technologies |
+| --- | --- |
+| Cloud | AWS, Amazon EKS, EC2, VPC, ALB, S3, DynamoDB |
+| Infrastructure as Code | Terraform |
+| Containers | Docker, Docker Compose |
+| Orchestration | Kubernetes, NGINX Ingress |
+| Application | Python/Flask, .NET, Node.js/Express |
+| Data | Redis, PostgreSQL |
+| CI/CD | GitHub Actions |
+| DNS and TLS | Route 53, cert-manager, Let's Encrypt |
+| Observability | Prometheus, Grafana, Node Exporter |
+| Configuration | Ansible |
 
----
+## Repository structure
 
-## Notes on Platforms (arm64 vs amd64)
-
-If you’re on an arm64 machine (e.g., Apple Silicon M1/M2) and encounter issues with images or dependencies that assume amd64, you can use Docker `buildx`:
-
-```bash
-docker buildx build --platform linux/amd64 -t myorg/worker:latest ./worker
+```text
+.
+├── .github/workflows/       # GitHub Actions deployment workflow
+├── ansible/                 # Host configuration and Docker Compose files
+├── bootstrap/               # S3 state bucket and DynamoDB lock table
+├── infrastructure/          # Terraform for AWS networking and compute
+├── k8s/                     # Kubernetes Deployments, Services, and Ingress
+├── scripts/                 # Load-testing scripts
+├── vote/                    # Python voting frontend
+├── worker/                  # .NET background worker
+├── result/                  # Node.js results application
+├── cluster-issuer.yaml      # Let's Encrypt ClusterIssuer
+└── docker-compose.yaml      # Local multi-container environment
 ```
 
-This ensures the image is built for the desired platform.
+## Kubernetes deployment
 
----
+The Kubernetes configuration defines:
+
+- Two replicas of the vote service.
+- Two replicas of the result service.
+- Two replicas of the worker service.
+- Redis and PostgreSQL internal services.
+- `ClusterIP` services for private service-to-service communication.
+- CPU and memory requests and limits for the vote and result workloads.
+- NGINX Ingress routing for `/` and `/result`.
+- HTTPS certificates issued by cert-manager through Let's Encrypt.
+
+Kubernetes' internal DNS allows services to communicate using names such as `redis-service` and `postgres`, without hard-coded pod IP addresses.
+
+## Infrastructure as Code
+
+Terraform is split into two stages:
+
+### 1. Remote-state bootstrap
+
+The `bootstrap/` configuration creates:
+
+- An encrypted and versioned S3 bucket for Terraform state.
+- A DynamoDB table for state locking.
+
+### 2. AWS infrastructure
+
+The `infrastructure/` configuration creates:
+
+- A custom VPC.
+- Public and private subnets across two Availability Zones.
+- An Internet Gateway and NAT Gateway.
+- Public and private route tables.
+- Security groups with role-specific rules.
+- EC2 instances and an Application Load Balancer used during the infrastructure phase of the project.
+- A generated Ansible inventory.
+
+## CI/CD
+
+The GitHub Actions workflow runs whenever code is pushed to `main`. It:
+
+1. Checks out the repository.
+2. Authenticates to AWS using repository secrets.
+3. Updates the kubeconfig for the EKS cluster.
+4. Applies the Kubernetes manifests.
+5. Displays the deployed pods, services, and ingress resources for verification.
+
+The workflow expects these GitHub Actions secrets:
+
+```text
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_REGION
+```
+
+For a production implementation, GitHub OpenID Connect and a short-lived IAM role would be preferable to long-lived access keys.
+
+## Observability
+
+Prometheus and Grafana were used to monitor both Kubernetes and the underlying nodes. The dashboards provided visibility into:
+
+- Node and cluster CPU utilization.
+- Memory usage and pressure.
+- Filesystem capacity and disk activity.
+- Network traffic.
+- Pod and container status.
+- Workload resource usage.
+- Kubernetes cluster health.
+
+This helped move troubleshooting beyond simply checking whether the website was reachable. I could inspect resource pressure, identify unhealthy workloads, and understand how the platform responded during load testing.
+
+### Dashboard screenshots
+
+To display the screenshots in this README, add them to `docs/images/` using the following names:
+
+```text
+docs/images/architecture.png
+docs/images/kubernetes-overview.png
+docs/images/node-exporter.png
+docs/images/kubernetes-cluster.png
+docs/images/kubernetes-pods.png
+```
+
+Then uncomment the image links below:
+
+<!--
+![AWS and EKS architecture](docs/images/architecture.png)
+![Kubernetes overview dashboard](docs/images/kubernetes-overview.png)
+![Node Exporter dashboard](docs/images/node-exporter.png)
+![Kubernetes cluster dashboard](docs/images/kubernetes-cluster.png)
+![Kubernetes pods dashboard](docs/images/kubernetes-pods.png)
+-->
+
+## Run locally with Docker Compose
+
+### Prerequisites
+
+- Docker
+- Docker Compose
+
+Clone the repository and start the application:
+
+```bash
+git clone https://github.com/leorfy15/ironhack-project-1c.git
+cd ironhack-project-1c
+docker compose up -d
+```
+
+Open:
+
+- Voting interface: <http://localhost:8080>
+- Results interface: <http://localhost:8081>
+
+Check the containers:
+
+```bash
+docker compose ps
+```
+
+Stop the environment:
+
+```bash
+docker compose down
+```
+
+## Deploy the Kubernetes workloads
+
+### Prerequisites
+
+- An accessible Kubernetes or EKS cluster.
+- `kubectl` configured for that cluster.
+- NGINX Ingress Controller.
+- cert-manager if TLS is enabled.
+- Application images available to the cluster.
+
+Apply the application manifests:
+
+```bash
+kubectl apply -f k8s/
+```
+
+If cert-manager is installed, apply the cluster issuer:
+
+```bash
+kubectl apply -f cluster-issuer.yaml
+```
+
+Verify the deployment:
+
+```bash
+kubectl get pods
+kubectl get services
+kubectl get ingress
+kubectl get events --sort-by=.metadata.creationTimestamp
+```
+
+> Before deploying to a different environment, update the hostname in `k8s/ingress.yaml` and confirm that DNS points to the ingress load balancer.
+
+## Load testing
+
+The repository contains scripts that generate concurrent votes against the configured HTTPS endpoint:
+
+```bash
+./scripts/load-test-votes.sh
+```
+
+The configurable HPA test accepts the number of requests, concurrency, and vote option:
+
+```bash
+./scripts/hpa-load-test.sh 10000 200 a
+```
+
+The tests were used alongside Grafana to observe how CPU, memory, pods, and nodes behaved under increased demand.
+
+## Key lessons
+
+- A successful deployment is only the beginning; observability is essential for understanding system behaviour.
+- Resource requests are required for CPU-based Horizontal Pod Autoscaling to make reliable scaling decisions.
+- Separating public and private network tiers reduces unnecessary exposure.
+- Remote Terraform state and locking are important when infrastructure is managed collaboratively.
+- Kubernetes service discovery removes the need to manage changing pod IP addresses.
+- Load testing reveals resource constraints that are easy to miss during normal manual testing.
+
+## Security and production improvements
+
+This is a learning project. Before production use, I would:
+
+- Replace the PostgreSQL credentials in the manifests with Kubernetes Secrets or an external secret manager.
+- Add persistent storage for PostgreSQL.
+- Use GitHub OIDC with a least-privilege IAM role.
+- Pin application images to immutable tags or digests instead of `latest`.
+- Add readiness and liveness probes to every workload.
+- Add NetworkPolicies and restrict public ingress where possible.
+- Manage the EKS cluster, monitoring stack, DNS, and ingress components as version-controlled Infrastructure as Code.
+- Add automated build, security scanning, tests, and rollout verification to the CI/CD pipeline.
+
+## Author
+
+**Tatiana Tudor**  
+DevOps Engineer | Cloud Infrastructure | Kubernetes | Terraform | Observability
+
+## Acknowledgements
+
+The application is based on the Docker Example Voting App and was extended as an Ironhack DevOps project with AWS infrastructure, Kubernetes deployment, CI/CD, TLS, load testing, and observability.
+
+## License
+
+See [LICENSE](LICENSE).
